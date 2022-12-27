@@ -30,10 +30,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 import optparse
-import os
+import sys
 
-# if os.name != "linux":
-#     raise OSError("This tool is for Linux only")
+if sys.platform != "linux":
+    raise OSError("This tool is for Linux only")
 
 ONLINE_FILE = r"/sys/devices/system/cpu/cpu%d/online"
 SIBLING_FILE = "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list"
@@ -141,13 +141,13 @@ def set_online(core_id, online=enable):
 
 def get_siblings(core_id):
     filename = SIBLING_FILE % core_id
-    fd = open(filename, "w")
+    fd = open(filename, "r")
     sibling_content = fd.readline()
 
-    return sibling_content.split(",")
+    return map(int, sibling_content.split(","))
 
 
-if __name__ == "__main__":
+def main():
     parser = optparse.OptionParser()
     parser.add_option("-e", "--enable", dest="enable", action="store",
                       type="string", help="input core set for enabling")
@@ -157,12 +157,11 @@ if __name__ == "__main__":
 
     (options, args) = parser.parse_args()
 
-    core_set = None
     if options.enable is not None:
         core_set = CPUcores.from_desc(options.enable)
         online = enable
     elif options.disable is not None:
-        core_set = CPUcores.from_hex(options.disable)
+        core_set = CPUcores.from_desc(options.disable)
         online = disable
     else:
         exit(0)
@@ -171,3 +170,7 @@ if __name__ == "__main__":
         set_online(core, online)
 
     exit(0)
+
+
+if __name__ == "__main__":
+    main()
