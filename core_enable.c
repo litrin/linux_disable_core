@@ -40,7 +40,7 @@ int set_state(int core, char state)
 {
 	if (core < 0) return 0;
 	char file_path[38];
-	sprintf(file_path, CPU_PATH, core);
+	snprintf(file_path, sizeof(file_path), CPU_PATH, core);
 
 
 	FILE* fd;
@@ -59,35 +59,40 @@ int set_state(int core, char state)
 
 int coreset_from_char(char *s, char state)
 {
-	int cur = 0;
-	int tmp = -1;
+	int cur = -1;
+	int begin = -1;
 	int err = 0;
+	char *p = s;
+	char *endp;
 
-  for (int i=0; s[i] != '\0'; ++i)
+	while (*p != '\0')
 	{
-		if (s[i] == ',')
+		errno = 0;
+		long parsed = strtol(p, &endp, 10);
+		if (endp == p || errno != 0 || parsed < 0)
+			return err + 1;
+
+		cur = (int)parsed;
+		p = endp;
+
+		if (*p == '-')
 		{
-			tmp = tmp < 0 ? cur : tmp ;
-			for(int i = tmp; i<= cur; i++)
-				err += set_state(i, state);
-      
- 			tmp = -1;
-			cur = 0;
+			begin = cur;
+			p++;
 			continue;
 		}
 
-		if (s[i] == '-')
+		if (*p == ',' || *p == '\0')
 		{
-			tmp = cur;
-			cur = 0;
+			err += apply_range(begin < 0 ? cur : begin, cur, state);
+			begin = -1;
+			if (*p == ',')
+				p++;
 			continue;
 		}
-		cur = cur * 10 + (int)s[i] - 48;
+
+		return err + 1;
 	}
-
-	tmp = tmp < 0 ? cur : tmp;
-	for(int i = tmp; i <= cur; i++)
-		err += set_state(i, state);
 
   return err;
 
@@ -95,6 +100,11 @@ int coreset_from_char(char *s, char state)
 
 int main(int argc, char *argv[])
 {
+#ifndef __linux__
+	fprintf(stderr, "This program only supports Linux.\n");
+	return 1;
+#endif
+
 	if (argc == 1)
 	{
 		usage();
@@ -117,4 +127,6 @@ int main(int argc, char *argv[])
 				return 0; 
 		}
 	}
+
+	return 0;
 }
